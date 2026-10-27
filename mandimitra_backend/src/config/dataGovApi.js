@@ -13,8 +13,7 @@ function isConfigured() {
     key &&
     typeof key === 'string' &&
     key.trim() !== '' &&
-    !key.includes('PASTE_YOUR_') &&
-    key !== 'PASTE_YOUR_DATA_GOV_API_KEY_HERE'
+    !key.includes('PASTE_YOUR_') 
   );
 }
 
@@ -49,7 +48,10 @@ function buildDataGovUrl(options = {}) {
   }
 
   if (options.commodity && typeof options.commodity === 'string' && options.commodity.trim()) {
-    url.searchParams.set('filters[commodity]', options.commodity.trim());
+   url.searchParams.set(
+  'filters[commodity]',
+  options.commodity.trim().toLowerCase()
+);
   }
 
   if (options.district && typeof options.district === 'string' && options.district.trim()) {
@@ -57,7 +59,7 @@ function buildDataGovUrl(options = {}) {
   }
 
   if (options.state && typeof options.state === 'string' && options.state.trim()) {
-    url.searchParams.set('filters[state]', options.state.trim());
+    url.searchParams.set('filters[state.keyword]', options.state.trim());
   }
 
   return url.toString();

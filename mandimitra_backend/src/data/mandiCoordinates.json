@@ -1,0 +1,12 @@
+[
+  {
+    "market": "Bhehjoi APMC",
+    "district": "Sambhal",
+    "state": "Uttar Pradesh",
+    "lat": 28.3931436,
+    "lng": 78.6232835,
+    "accuracy": "town",
+    "source": "OpenStreetMap",
+    "verified": false
+  }
+]

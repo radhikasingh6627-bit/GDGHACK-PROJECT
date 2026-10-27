@@ -1,4 +1,4 @@
-const priceService = require('../services/priceService');
+const priceService = require("../services/priceService");
 
 /**
  * GET /api/prices/today
@@ -18,52 +18,54 @@ async function getTodayPrices(req, res, next) {
       district,
       state,
       limit: limit ? parseInt(limit, 10) : 50,
-      offset: offset ? parseInt(offset, 10) : 0
+      offset: offset ? parseInt(offset, 10) : 0,
     });
 
-    if (result.status === 'unconfigured') {
+    if (result.status === "unconfigured") {
       return res.status(503).json({
         success: false,
         error: {
-          code: 'DATA_GOV_UNCONFIGURED',
+          code: "DATA_GOV_UNCONFIGURED",
           message: result.error,
-          hint: 'Please set DATA_GOV_API_KEY in your .env file to enable live data.gov.in queries.'
-        }
+          hint: "Please set DATA_GOV_API_KEY in your .env file to enable live data.gov.in queries.",
+        },
       });
     }
 
-    if (result.status === 'api_error') {
+    if (result.status === "api_error") {
       return res.status(502).json({
         success: false,
         error: {
-          code: 'UPSTREAM_API_ERROR',
-          message: result.error
-        }
+          code: "UPSTREAM_API_ERROR",
+          message: result.error,
+        },
       });
     }
 
-    if (result.status === 'no_data') {
+    if (result.status === "no_data") {
       return res.status(200).json({
         success: true,
-        status: 'no_data',
+        status: "no_data",
         count: 0,
         commodity: result.commodity,
         district: result.district,
         state: result.state,
-        message: result.message || 'No mandi price records found matching the requested filters.',
-        records: []
+        message:
+          result.message ||
+          "No mandi price records found matching the requested filters.",
+        records: [],
       });
     }
 
     return res.status(200).json({
       success: true,
-      status: 'success',
+      status: "success",
       count: result.count,
       total: result.total,
       commodity: result.commodity,
       district: result.district,
       state: result.state,
-      records: result.records
+      records: result.records,
     });
   } catch (err) {
     next(err);
@@ -90,40 +92,40 @@ async function getPriceTrend(req, res, next) {
       state,
       days,
       market,
-      variety
+      variety,
     });
 
     // 1. Invalid query parameters
-    if (result.status === 'invalid_params') {
+    if (result.status === "invalid_params") {
       return res.status(400).json({
         success: false,
-        status: 'invalid_params',
+        status: "invalid_params",
         error: {
-          code: 'INVALID_PARAMETER',
-          message: result.error
-        }
+          code: "INVALID_PARAMETER",
+          message: result.error,
+        },
       });
     }
 
     // 2. External source failure or missing credentials
-    if (result.status === 'source_unavailable') {
+    if (result.status === "source_unavailable") {
       return res.status(503).json({
         success: false,
-        status: 'source_unavailable',
+        status: "source_unavailable",
         message: result.message,
         error: result.error,
         recordsAvailable: 0,
         history: [],
         change: null,
-        direction: 'unknown'
+        direction: "unknown",
       });
     }
 
     // 3. Successful source lookup with no matching records
-    if (result.status === 'no_data') {
+    if (result.status === "no_data") {
       return res.status(200).json({
         success: true,
-        status: 'no_data',
+        status: "no_data",
         message: result.message,
         recordsAvailable: 0,
         commodity: result.commodity,
@@ -131,15 +133,15 @@ async function getPriceTrend(req, res, next) {
         history: [],
         calendarSeries: [],
         change: null,
-        direction: 'unknown'
+        direction: "unknown",
       });
     }
 
     // 4. Matching record exists but modal price is unavailable or invalid
-    if (result.status === 'price_unavailable') {
+    if (result.status === "price_unavailable") {
       return res.status(200).json({
         success: true,
-        status: 'price_unavailable',
+        status: "price_unavailable",
         message: result.message,
         recordsAvailable: result.recordsAvailable,
         commodity: result.commodity,
@@ -150,15 +152,15 @@ async function getPriceTrend(req, res, next) {
         history: [],
         calendarSeries: [],
         change: null,
-        direction: 'unknown'
+        direction: "unknown",
       });
     }
 
     // 5. Insufficient data: < 2 valid observations for trend calculation
-    if (result.status === 'insufficient_data') {
+    if (result.status === "insufficient_data") {
       return res.status(200).json({
         success: true,
-        status: 'insufficient_data',
+        status: "insufficient_data",
         message: result.message,
         recordsAvailable: result.recordsAvailable,
         commodity: result.commodity,
@@ -171,14 +173,14 @@ async function getPriceTrend(req, res, next) {
         calendarSeries: result.calendarSeries,
         history: result.history,
         change: null,
-        direction: 'unknown'
+        direction: "unknown",
       });
     }
 
     // 6. Valid trend successfully established
     return res.status(200).json({
       success: true,
-      status: 'success',
+      status: "success",
       commodity: result.commodity,
       district: result.district,
       market: result.market,
@@ -192,7 +194,7 @@ async function getPriceTrend(req, res, next) {
       change: result.change,
       metrics: result.metrics,
       direction: result.direction,
-      directionEnglish: result.directionEnglish
+      directionEnglish: result.directionEnglish,
     });
   } catch (err) {
     next(err);
@@ -201,5 +203,5 @@ async function getPriceTrend(req, res, next) {
 
 module.exports = {
   getTodayPrices,
-  getPriceTrend
+  getPriceTrend,
 };

@@ -26,7 +26,8 @@ function startServer(port) {
   return server;
 }
 
-const server = startServer(config.port);
+const portToUse = parseInt(process.env.PORT, 10) || config.port || 5001;
+const server = startServer(portToUse);
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

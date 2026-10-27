@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="hi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MandiDarpan (मंडी दर्पण) - किसान भाइयों के लिए मंडी भाव</title>
+    <meta name="description" content="भारत के किसानों के लिए ताज़ा मंडी भाव, मूल्य रुझान और बाज़ार तुलना। आसान हिंदी और अंग्रेज़ी में।" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('Captured UI Error:', e.error || e.message);
+        var errBox = document.getElementById('debug-error-box');
+        if (!errBox) {
+          errBox = document.createElement('div');
+          errBox.id = 'debug-error-box';
+          errBox.style = 'position:fixed;top:10px;left:10px;right:10px;background:#fee2e2;border:2px solid #ef4444;color:#991b1b;padding:16px;border-radius:12px;z-index:99999;font-family:sans-serif;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);';
+          document.body.prepend(errBox);
+        }
+        errBox.innerHTML = '<h3 style="margin:0 0 8px 0;font-weight:bold;">Error Loading App:</h3>' + (e.message || 'Unknown error') + '<pre style="margin-top:8px;font-size:12px;overflow:auto;">' + (e.error ? e.error.stack : '') + '</pre>';
+      });
+    </script>
+  </head>
+  <body class="bg-[#f8faf7] text-gray-900 font-sans antialiased min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
