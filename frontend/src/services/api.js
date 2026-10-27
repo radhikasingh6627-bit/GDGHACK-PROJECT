@@ -4,7 +4,7 @@
 const PRIMARY_API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
-const FALLBACK_API_URL = "https://gdg-srmcem.onrender.com".replace(/\/+$/, "");
+const FALLBACK_API_URL = "https://mandimitra-backend.onrender.com".replace(/\/+$/, "");
 
 let activeBaseUrl = PRIMARY_API_URL;
 
