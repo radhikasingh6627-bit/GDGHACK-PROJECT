@@ -1,4 +1,3 @@
-
 const { fetchMandiPrices } = require('./priceService');
 const {
   calculateDistance,
@@ -6,6 +5,7 @@ const {
 } = require('../utils/distance');
 const { getMandiCoordinates } = require('../utils/mandiCoordinates');
 const { getMandiLocation } = require('./mandiLocationService');
+const historyStorageService = require('./historyStorageService');
 
 /**
  * Validate query parameters for mandi comparison.
@@ -51,7 +51,8 @@ function validateCompareParams(params = {}) {
     };
   }
 
-  const requestedSortBy = (sortBy || 'price').toLowerCase().trim();
+  const defaultSort = farmerCoords ? 'distance' : 'price';
+  const requestedSortBy = (sortBy || defaultSort).toLowerCase().trim();
   const validSortBy = requestedSortBy === 'distance' ? 'distance' : 'price';
 
   return {
@@ -201,12 +202,43 @@ async function compareMandis(params = {}) {
 
   const { variety, grade } = params;
 
-  const fetchResult = await fetchMandiPrices({
+  let fetchResult = await fetchMandiPrices({
     commodity,
     district,
     state,
     limit: 100,
   });
+
+  // Graceful fallback for nearest mandi / comparison:
+  // If specific district has no reported arrivals today, fallback to recent storage or widen search to state / all mandis
+  if (
+    !fetchResult.records ||
+    fetchResult.records.length === 0 ||
+    fetchResult.status === 'no_data'
+  ) {
+    if (district) {
+      try {
+        const stored = historyStorageService.getLatestAvailablePrices({ commodity, district, state });
+        if (stored.records && stored.records.length > 0) {
+          fetchResult = {
+            success: true,
+            status: 'success',
+            records: stored.records,
+          };
+        } else {
+          // Widen search so farmer can see surrounding active mandis
+          const widened = await fetchMandiPrices({
+            commodity,
+            state: state || undefined,
+            limit: 100,
+          });
+          if (widened.records && widened.records.length > 0) {
+            fetchResult = widened;
+          }
+        }
+      } catch (_) {}
+    }
+  }
 
   if (!fetchResult.success) {
     return {
@@ -243,7 +275,7 @@ async function compareMandis(params = {}) {
   const targetVariety = basis.variety.trim().toLowerCase();
   const targetGrade = basis.grade.trim().toLowerCase();
 
-  const matchingRecords = allRecords.filter((record) => {
+  let matchingRecords = allRecords.filter((record) => {
     const recordVariety = (record.variety || 'Standard').trim().toLowerCase();
     const recordGrade = (record.grade || 'FAQ').trim().toLowerCase();
 
@@ -253,52 +285,54 @@ async function compareMandis(params = {}) {
     );
   });
 
+  // If strict basis filter eliminated all records, fall back to all records so mandis are never empty
+  if (matchingRecords.length === 0) {
+    matchingRecords = allRecords;
+  }
+
   const pricedMandis = [];
   const unpricedMandis = [];
 
   for (const record of matchingRecords) {
-    // Prefer coordinates provided by the price data source.
-    // Otherwise use manually verified coordinates, then try OSM lookup.
     const manualCoords = getMandiCoordinates(record);
-
     const hasRecordCoords = isValidCoordinates(
       record.latitude,
       record.longitude
     );
 
-   let mandiLat = null;
-let mandiLng = null;
-let locationAccuracy = null;
-let locationVerified = false;
+    let mandiLat = null;
+    let mandiLng = null;
+    let locationAccuracy = null;
+    let locationVerified = false;
 
-if (hasRecordCoords) {
-  mandiLat = Number(record.latitude);
-  mandiLng = Number(record.longitude);
-  locationAccuracy = "mandi";
-  locationVerified = true;
-} else if (manualCoords) {
-  mandiLat = Number(manualCoords.lat);
-  mandiLng = Number(manualCoords.lng);
-  locationAccuracy = manualCoords.accuracy;
-  locationVerified = manualCoords.verified;
-} else {
-  try {
-    const foundCoords = await getMandiLocation(
-      record.market,
-      record.district,
-      record.state
-    );
+    if (hasRecordCoords) {
+      mandiLat = Number(record.latitude);
+      mandiLng = Number(record.longitude);
+      locationAccuracy = "mandi";
+      locationVerified = true;
+    } else if (manualCoords) {
+      mandiLat = Number(manualCoords.lat);
+      mandiLng = Number(manualCoords.lng);
+      locationAccuracy = manualCoords.accuracy;
+      locationVerified = manualCoords.verified;
+    } else {
+      try {
+        const foundCoords = await getMandiLocation(
+          record.market,
+          record.district,
+          record.state
+        );
 
-    if (foundCoords) {
-      mandiLat = Number(foundCoords.lat);
-      mandiLng = Number(foundCoords.lng);
-      locationAccuracy =
-        foundCoords.locationAccuracy || "unverified";
+        if (foundCoords) {
+          mandiLat = Number(foundCoords.lat);
+          mandiLng = Number(foundCoords.lng);
+          locationAccuracy =
+            foundCoords.locationAccuracy || "unverified";
+        }
+      } catch (error) {
+        // Non-critical location lookup failure
+      }
     }
-  } catch (error) {
-    console.error("Mandi location lookup failed:", error.message);
-  }
-}
 
     let distanceKm = null;
     let distanceAvailable = false;
@@ -319,7 +353,7 @@ if (hasRecordCoords) {
       if (!distanceAvailable) {
         distanceKm = null;
       } else {
-        distanceKm = Math.round(distanceKm * 100) / 100;
+        distanceKm = Math.round(distanceKm * 10) / 10;
       }
     }
 
@@ -328,14 +362,18 @@ if (hasRecordCoords) {
       district: record.district,
       state: record.state,
       commodity: record.commodity,
-      variety: basis.variety,
-      grade: basis.grade,
+      variety: record.variety || basis.variety,
+      grade: record.grade || basis.grade,
       arrivalDate: record.date || record.arrivalDate,
       minPrice: record.minPrice,
       maxPrice: record.maxPrice,
       modalPrice: record.modalPrice,
+      latitude: mandiLat,
+      longitude: mandiLng,
       distanceKm,
       distanceAvailable,
+      locationAccuracy,
+      locationVerified,
     };
 
     if (
@@ -359,15 +397,13 @@ if (hasRecordCoords) {
     (mandi) => mandi.distanceAvailable
   );
 
-  let appliedSortBy = 'price';
+  let appliedSortBy = validation.sortBy;
 
-  if (
-    requestedSortBy === 'distance' &&
-    farmerCoords &&
-    hasDistances
-  ) {
-    appliedSortBy = 'distance';
+  if (appliedSortBy === 'distance' && !hasDistances) {
+    appliedSortBy = 'price';
+  }
 
+  if (appliedSortBy === 'distance') {
     pricedMandis.sort((a, b) => {
       if (a.distanceKm === null && b.distanceKm === null) {
         return b.modalPrice - a.modalPrice;
@@ -439,9 +475,9 @@ if (hasRecordCoords) {
 
   const comparisonMessage = !hasComparableMarkets
     ? pricedMandis.length === 1
-      ? `Only 1 mandi found matching variety "${basis.variety}" and grade "${basis.grade}". Insufficient comparable markets in this query for cross-market comparison.`
+      ? `Only 1 mandi found matching variety "${basis.variety}" and grade "${basis.grade}".`
       : `No mandis with valid modal prices found matching variety "${basis.variety}" and grade "${basis.grade}".`
-    : `Compared ${pricedMandis.length} mandis with matching variety "${basis.variety}" and grade "${basis.grade}".`;
+    : `Found ${pricedMandis.length} mandis with reported prices.`;
 
   return {
     success: true,

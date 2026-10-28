@@ -181,12 +181,16 @@ export async function getPriceTrend({
 export async function compareMandis({
   commodity,
   district,
+  state,
   userLat,
   userLon,
+  sortBy,
 } = {}) {
   const queryParams = new URLSearchParams();
   if (commodity?.trim()) queryParams.append("commodity", commodity.trim());
   if (district?.trim()) queryParams.append("district", district.trim());
+  if (state?.trim()) queryParams.append("state", state.trim());
+  if (sortBy?.trim()) queryParams.append("sortBy", sortBy.trim());
   if (userLat !== undefined && userLat !== null) {
     queryParams.append("lat", String(userLat));
   }

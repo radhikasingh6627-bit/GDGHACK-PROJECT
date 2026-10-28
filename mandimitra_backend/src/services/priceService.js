@@ -1,4 +1,3 @@
-
 const { isConfigured, buildDataGovUrl } = require("../config/dataGovApi");
 const { normalizeRecord } = require("../utils/normalizeData");
 const { calculateTrend, validateTrendParams } = require("./trendService");
@@ -7,6 +6,8 @@ const {
   isValidCoordinates,
 } = require("../utils/geoUtils");
 const { getMandiCoordinates } = require("../utils/mandiCoordinates");
+const historyStorageService = require("./historyStorageService");
+const { getMockPrices } = require("./mockDataService");
 
 function recordMatchesFilters(record, filters) {
   if (filters.commodity && typeof filters.commodity === "string" && filters.commodity.trim()) {
@@ -33,9 +34,6 @@ function recordMatchesFilters(record, filters) {
   return true;
 }
 
-
-const { getMockPrices } = require("./mockDataService");
-
 async function fetchMandiPrices(filters = {}) {
   if (!isConfigured()) {
     return getMockPrices(filters);
@@ -58,8 +56,6 @@ async function fetchMandiPrices(filters = {}) {
         limit: pageSize,
         offset,
       });
-
-    
 
       const response = await fetch(requestUrl, {
         signal: controller.signal,
@@ -107,6 +103,15 @@ async function fetchMandiPrices(filters = {}) {
       .filter(Boolean)
       .filter((record) => recordMatchesFilters(record, filters));
 
+    // Automatically save daily live records into 30-day FIFO rolling storage
+    if (normalized.length > 0) {
+      try {
+        historyStorageService.saveDailyRecords(normalized);
+      } catch (err) {
+        console.warn("[Storage] Non-critical history save error:", err.message);
+      }
+    }
+
     return {
       success: true,
       status: normalized.length ? "success" : "no_data",
@@ -134,9 +139,35 @@ async function fetchMandiPrices(filters = {}) {
   }
 }
 
-
 async function getTodayPrices(params = {}) {
-  return fetchMandiPrices({ ...params, forTodayOnly: true });
+  const result = await fetchMandiPrices({ ...params, forTodayOnly: true });
+
+  // Fallback: If today's prices are not yet updated on data.gov.in (morning, holiday, etc.),
+  // provide the latest available verified prices from the 30-day storage.
+  if (result.success && result.status === "no_data") {
+    try {
+      const fallback = historyStorageService.getLatestAvailablePrices(params);
+      if (fallback.records && fallback.records.length > 0) {
+        return {
+          success: true,
+          status: "success",
+          isFallback: true,
+          lastUpdatedDate: fallback.date,
+          message: `Today's rates are not yet updated on the Mandi portal. Showing last recorded prices from ${fallback.date}.`,
+          count: fallback.records.length,
+          total: fallback.records.length,
+          commodity: params.commodity || null,
+          district: params.district || null,
+          state: params.state || null,
+          records: fallback.records,
+        };
+      }
+    } catch (err) {
+      console.warn("[Fallback] Error retrieving latest stored prices:", err.message);
+    }
+  }
+
+  return result;
 }
 
 async function getPriceTrend(params = {}) {
@@ -153,21 +184,31 @@ async function getPriceTrend(params = {}) {
   const { commodity, district, days } = validation;
   const { market, variety, grade, state } = params;
 
-  const fetchResult = await fetchMandiPrices({
+  // 1. Fetch today's records if possible so today's live data is saved to 30-day storage
+  try {
+    await fetchMandiPrices({
+      commodity,
+      district,
+      state,
+      limit: 100,
+      forTrend: true,
+    });
+  } catch (_) {}
+
+  // 2. Retrieve history records from the 30-day rolling storage
+  const historyRecords = historyStorageService.getHistoryRecords({
     commodity,
     district,
     state,
+    market,
     days,
-    limit: 100,
-    forTrend: true,
   });
 
-  if (!fetchResult.success) {
+  if (!historyRecords || historyRecords.length === 0) {
     return {
-      success: false,
-      status: "source_unavailable",
-      message: "External price data source is unavailable.",
-      error: fetchResult.error,
+      success: true,
+      status: "no_data",
+      message: `No price records found for commodity "${commodity}".`,
       recordsAvailable: 0,
       commodity,
       district,
@@ -178,7 +219,8 @@ async function getPriceTrend(params = {}) {
     };
   }
 
-  const trendResult = calculateTrend(fetchResult.records, {
+  // 3. Compute deterministic trend using strict isolation & validation
+  const trendResult = calculateTrend(historyRecords, {
     commodity,
     district,
     days,
@@ -195,9 +237,6 @@ async function getPriceTrend(params = {}) {
 
 async function compareMandis(params = {}) {
   const { commodity, district, state, lat, lng } = params;
-
-  
-  console.log("Incoming comparison params:", { commodity, district, state, lat, lng });
 
   if (!commodity || !commodity.trim()) {
     return {
@@ -217,13 +256,20 @@ async function compareMandis(params = {}) {
   if (!result.success) return result;
 
   if (result.status === "no_data" || result.records.length === 0) {
-    return {
-      success: true,
-      status: "no_data",
-      commodity,
-      mandis: [],
-      message: `No price records found for commodity "${commodity}".`,
-    };
+    // If today has no records, check 30-day storage for recent rates
+    const fallback = historyStorageService.getLatestAvailablePrices({ commodity, district, state });
+    if (fallback.records && fallback.records.length > 0) {
+      result.records = fallback.records;
+      result.status = "success";
+    } else {
+      return {
+        success: true,
+        status: "no_data",
+        commodity,
+        mandis: [],
+        message: `No price records found for commodity "${commodity}".`,
+      };
+    }
   }
 
   const hasUserCoords = isValidCoordinates(lat, lng);
@@ -255,8 +301,6 @@ async function compareMandis(params = {}) {
         distanceAvailable = Number.isFinite(distanceKm);
         if (!distanceAvailable) distanceKm = null;
       }
-
-     
 
       return {
         market: record.market,

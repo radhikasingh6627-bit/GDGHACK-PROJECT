@@ -3,6 +3,11 @@ node_modules/
 
 # Environment configuration & secrets
 .env
+.env*.local
+
+# Runtime rolling cache storage
+mandimitra_backend/src/data/priceHistory.json
+mandimitra_backend/src/data/priceHistory.json.tmp
 
 # Logs and system files
 *.log

@@ -63,7 +63,8 @@ export default function NearestMandiPage() {
       district: d,
       state: s,
       userLat: lat,
-      userLon: lon
+      userLon: lon,
+      sortBy: 'distance'
     });
 
     setLoading(false);
@@ -97,7 +98,8 @@ export default function NearestMandiPage() {
         };
         setCoords(userCoords);
         setLocating(false);
-        fetchMarkets({ lat: userCoords.latitude, lon: userCoords.longitude });
+        // Search nearest mandis to the user's GPS coordinates without restricting to one empty district
+        fetchMarkets({ lat: userCoords.latitude, lon: userCoords.longitude, district: '' });
       },
       () => {
         setLocating(false);
@@ -127,7 +129,10 @@ export default function NearestMandiPage() {
 
     let isMounted = true;
     mandis.forEach(async (m) => {
-      const mandiCoords = getMandiCoords(m);
+      const mandiCoords = (m.latitude && m.longitude)
+        ? { lat: Number(m.latitude), lng: Number(m.longitude) }
+        : getMandiCoords(m);
+
       if (mandiCoords && oLat && oLon) {
         const route = await fetchRoadDistance(oLat, oLon, mandiCoords.lat, mandiCoords.lng);
         if (isMounted && route) {
@@ -286,6 +291,29 @@ export default function NearestMandiPage() {
       {loading && <LoadingIndicator message={lang === 'hi' ? 'मंडियों की जानकारी लोड हो रही है...' : 'Loading market details...'} />}
       {error && <ErrorMessage message={error.message} hint={error.hint} onRetry={() => fetchMarkets()} />}
 
+      {/* Empty State when no mandis matched */}
+      {!loading && !error && mandis.length === 0 && (
+        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm text-center">
+          <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <MapPin size={24} />
+          </div>
+          <h3 className="text-base font-bold text-gray-800">
+            {lang === 'hi' ? 'कोई मंडी नहीं मिली' : 'No Mandis Found'}
+          </h3>
+          <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+            {lang === 'hi'
+              ? `"${commodity}" के लिए ${district ? `ज़िला "${district}" में` : 'चुने गए फ़िल्टर में'} आज कोई मंडी भाव दर्ज नहीं है। कृपया सभी ज़िले चुनकर देखें या खेत की लाइव लोकेशन लें।`
+              : `No reported prices for "${commodity}" in ${district ? `"${district}"` : 'selected filters'} today. Try viewing all districts or detect GPS.`}
+          </p>
+          <button
+            onClick={() => { setDistrict(''); fetchMarkets({ district: '' }); }}
+            className="mt-4 px-5 py-2.5 bg-[#166534] hover:bg-[#0f3d24] text-white text-xs font-bold rounded-xl shadow cursor-pointer transition"
+          >
+            {lang === 'hi' ? 'सभी निकटतम मंडियां देखें' : 'View All Nearby Mandis'}
+          </button>
+        </div>
+      )}
+
       {/* Markets List with Exact Road Distance & Google Maps Navigation */}
       {!loading && !error && mandis.length > 0 && (
         <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
@@ -314,7 +342,10 @@ export default function NearestMandiPage() {
                 {mandis.map((m, idx) => {
                   const key = `${m.market}_${m.district}`;
                   const roadRoute = roadRoutes[key];
-                  const mandiCoords = getMandiCoords(m);
+                  const mandiCoords = (m.latitude && m.longitude)
+                    ? { lat: Number(m.latitude), lng: Number(m.longitude) }
+                    : getMandiCoords(m);
+
                   const mapsUrl = getGoogleMapsNavigationUrl({
                     marketName: m.market,
                     district: m.district,
