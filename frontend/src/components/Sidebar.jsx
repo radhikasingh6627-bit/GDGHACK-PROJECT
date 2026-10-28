@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Store, TrendingUp, Scale, Compass, Bot, X } from 'lucide-react';
+import { Home, Store, TrendingUp, Scale, Compass, Bot, Bell, X } from 'lucide-react';
 import Logo from './Logo';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -12,8 +12,22 @@ export default function Sidebar({ activePage, setActivePage, isOpen, onClose }) 
     { id: 'trends', label: t.nav.trends, icon: TrendingUp },
     { id: 'compare', label: t.nav.compare, icon: Scale },
     { id: 'nearest', label: t.nav.nearest, icon: Compass },
+    { id: 'alerts', label: t.nav.alerts || 'व्हाट्सएप अलर्ट', icon: Bell },
     { id: 'assistant', label: t.nav.assistant, icon: Bot, isSpecial: true },
   ];
+
+  const handleNavClick = (itemId) => {
+    if (itemId === 'alerts') {
+      setActivePage('home');
+      setTimeout(() => {
+        const el = document.getElementById('whatsapp-alerts');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      setActivePage(itemId);
+    }
+    if (onClose) onClose();
+  };
 
   return (
     <>
@@ -57,10 +71,7 @@ export default function Sidebar({ activePage, setActivePage, isOpen, onClose }) 
               <button
                 key={item.id}
                 type="button"
-                onClick={() => {
-                  setActivePage(item.id);
-                  if (onClose) onClose();
-                }}
+                onClick={() => handleNavClick(item.id)}
                 className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 text-left ${
                   isActive
                     ? 'bg-[#166534] text-white shadow-sm'

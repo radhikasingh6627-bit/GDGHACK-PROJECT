@@ -282,3 +282,149 @@ export async function checkBackendHealth() {
     return { isOnline: false };
   }
 }
+
+// =========================================================================
+// WhatsApp Price Alert System API Methods
+// =========================================================================
+
+/**
+ * GET /api/alerts/status
+ * Fetches WhatsApp configuration and scheduler status
+ */
+export async function getWhatsAppStatus() {
+  try {
+    const res = await fetchWithFallback("/api/alerts/status");
+    if (!res.ok) {
+      return { success: false, error: "Failed to fetch WhatsApp status" };
+    }
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * GET /api/alerts
+ * Lists all registered price alerts (with masked phone numbers)
+ */
+export async function getAlerts() {
+  try {
+    const res = await fetchWithFallback("/api/alerts");
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, alerts: [], error: data?.error?.message || "Failed to fetch alerts" };
+    }
+    return data;
+  } catch (err) {
+    return { success: false, alerts: [], error: err.message };
+  }
+}
+
+/**
+ * POST /api/alerts
+ * Creates a new price alert with phone number and explicit consent
+ */
+export async function createAlert(alertData) {
+  try {
+    const res = await fetchWithFallback("/api/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(alertData),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data?.error?.message || data?.message || "Failed to create alert",
+        code: data?.error?.code
+      };
+    }
+    return data;
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * DELETE /api/alerts/:id
+ * Removes an existing price alert
+ */
+export async function deleteAlert(id) {
+  try {
+    const res = await fetchWithFallback(`/api/alerts/${id}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data?.error?.message || "Failed to delete alert" };
+    }
+    return data;
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * POST /api/alerts/:id/check
+ * Manually trigger evaluation for a specific alert
+ */
+export async function checkAlert(id) {
+  try {
+    const res = await fetchWithFallback(`/api/alerts/${id}/check`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * POST /api/alerts/check-all
+ * Triggers evaluation cycle across all registered alerts
+ */
+export async function checkAllAlerts() {
+  try {
+    const res = await fetchWithFallback("/api/alerts/check-all", {
+      method: "POST",
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * POST /api/alerts/test-send
+ * Explicit action: sends test alert ONLY to verified test recipient
+ */
+export async function sendTestAlert() {
+  try {
+    const res = await fetchWithFallback("/api/alerts/test-send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * GET /api/alerts/history
+ * Fetches recent notification delivery logs
+ */
+export async function getAlertHistory(limit = 20) {
+  try {
+    const res = await fetchWithFallback(`/api/alerts/history?limit=${limit}`);
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, history: [], error: data?.error?.message || "Failed to fetch history" };
+    }
+    return data;
+  } catch (err) {
+    return { success: false, history: [], error: err.message };
+  }
+}

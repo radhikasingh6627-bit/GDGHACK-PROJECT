@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Wheat, RefreshCw, TrendingUp, Scale, Compass, Bot, ShieldCheck } from 'lucide-react';
+import { Search, MapPin, Wheat, RefreshCw, TrendingUp, Scale, Compass, Bot, ShieldCheck, Bell } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { POPULAR_CROPS, POPULAR_STATES, SUGGESTED_DISTRICTS, STATE_DISTRICTS_MAP } from '../utils/translations';
 import { getTodayPrices } from '../services/api';
@@ -7,6 +7,7 @@ import PriceCard from '../components/PriceCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
+import WhatsAppAlertsSection from '../components/WhatsAppAlertsSection';
 
 export default function HomePage({ onNavigate }) {
   const { t, lang } = useLanguage();
@@ -278,13 +279,18 @@ export default function HomePage({ onNavigate }) {
         )}
       </div>
 
-      {/* 4. Quick Feature Access Grid */}
+      {/* 4. WhatsApp Price Alerts Section */}
+      <div id="whatsapp-alerts">
+        <WhatsAppAlertsSection />
+      </div>
+
+      {/* 5. Quick Feature Access Grid */}
       <div className="pt-6 border-t border-gray-200">
         <h3 className="text-xl font-extrabold text-[#0f3d24] mb-4">
           {t.home.quickFeaturesHeading}
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Feature 1: Trends */}
           <div
             onClick={() => onNavigate && onNavigate('trends')}
@@ -367,6 +373,32 @@ export default function HomePage({ onNavigate }) {
               </p>
             </div>
             <div className="mt-4 text-xs font-bold text-[#166534] flex items-center gap-1">
+              <span>{t.home.exploreBtn}</span>
+            </div>
+          </div>
+
+          {/* Feature 5: WhatsApp Price Alerts */}
+          <div
+            onClick={() => {
+              const el = document.getElementById('whatsapp-alerts');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="p-5 bg-gradient-to-br from-emerald-800 to-[#0f3d24] text-white rounded-2xl border border-emerald-700 shadow-sm hover:shadow-md transition cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="w-11 h-11 rounded-xl bg-white/10 text-emerald-300 flex items-center justify-center mb-3 group-hover:scale-105 transition shadow-sm">
+                <Bell size={22} />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <h4 className="font-bold text-white transition">
+                  {t.home.featureAlertsTitle || 'WhatsApp Alerts'}
+                </h4>
+              </div>
+              <p className="text-xs text-emerald-100/80 mt-1.5 leading-relaxed">
+                {t.home.featureAlertsDesc || 'Receive WhatsApp alerts when rates reach your target.'}
+              </p>
+            </div>
+            <div className="mt-4 text-xs font-bold text-emerald-300 flex items-center gap-1">
               <span>{t.home.exploreBtn}</span>
             </div>
           </div>

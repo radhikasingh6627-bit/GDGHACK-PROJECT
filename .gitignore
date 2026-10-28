@@ -8,6 +8,8 @@ node_modules/
 # Runtime rolling cache storage
 mandimitra_backend/src/data/priceHistory.json
 mandimitra_backend/src/data/priceHistory.json.tmp
+mandimitra_backend/src/data/alerts.json
+mandimitra_backend/src/data/alerts.json.tmp
 
 # Logs and system files
 *.log

@@ -1,5 +1,6 @@
 const app = require('./app');
 const config = require('./src/config/env');
+const { startScheduler } = require('./src/services/alertScheduler');
 
 /**
  * Start the HTTP server with automatic port-in-use fallback.
@@ -9,6 +10,9 @@ function startServer(port) {
   const server = app.listen(port, () => {
     console.log(`MandiMitra backend server listening on port ${port}`);
     console.log(`Health check: http://localhost:${port}/api/health`);
+
+    // Start background alert scheduler
+    startScheduler();
   });
 
   server.on('error', (err) => {
